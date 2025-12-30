@@ -1,16 +1,62 @@
 import * as cdk from 'aws-cdk-lib/core';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class NewCDkStack extends cdk.Stack {
+  public readonly bucket: s3.Bucket;
+
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    // Create S3 bucket using L2 construct
+    this.bucket = new s3.Bucket(this, 'Level2S2Bucket', {
+      bucketName: 'level2-s2-bucket',
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      versioned: true,
+    });
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'NewCDkQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    // Create Lambda function using L2 construct
+    const s3ProcessorFunction = new lambda.Function(this, 'S3ProcessorFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda'),
+      functionName: 's3-processor-function',
+      description: 'Lambda function that processes objects in S3 bucket',
+      timeout: cdk.Duration.seconds(30),
+      environment: {
+        BUCKET_NAME: this.bucket.bucketName,
+      },
+    });
+
+    // Grant the Lambda function permissions to read/write to the bucket (L2 convenience method)
+    this.bucket.grantReadWrite(s3ProcessorFunction);
+
+    // Add an S3 event trigger - Lambda will be invoked when objects are uploaded (L2 convenience method)
+    this.bucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new s3n.LambdaDestination(s3ProcessorFunction)
+    );
+
+    // Export the bucket name and ARN so other stacks can reference it
+    new cdk.CfnOutput(this, 'BucketName', {
+      value: this.bucket.bucketName,
+      exportName: 'Level2S2Bucket-Name',
+      description: 'The name of the S3 bucket',
+    });
+
+    new cdk.CfnOutput(this, 'BucketArn', {
+      value: this.bucket.bucketArn,
+      exportName: 'Level2S2Bucket-Arn',
+      description: 'The ARN of the S3 bucket',
+    });
+
+    new cdk.CfnOutput(this, 'LambdaFunctionArn', {
+      value: s3ProcessorFunction.functionArn,
+      description: 'The ARN of the Lambda function',
+    });
+
   }
 }
