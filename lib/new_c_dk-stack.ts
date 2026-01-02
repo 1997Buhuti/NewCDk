@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib/core';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 
 export class NewCDkStack extends cdk.Stack {
@@ -18,16 +19,19 @@ export class NewCDkStack extends cdk.Stack {
       versioned: true,
     });
 
-    // Create Lambda function using L2 construct
-    const s3ProcessorFunction = new lambda.Function(this, 'S3ProcessorFunction', {
+    // Create Lambda function using NodejsFunction which handles TypeScript bundling automatically
+    const s3ProcessorFunction = new NodejsFunction(this, 'S3ProcessorFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda'),
+      entry: 'lambda/index.ts',
+      handler: 'handler',
       functionName: 's3-processor-function',
       description: 'Lambda function that processes objects in S3 bucket',
       timeout: cdk.Duration.seconds(30),
       environment: {
         BUCKET_NAME: this.bucket.bucketName,
+      },
+      bundling: {
+        externalModules: ['aws-sdk'], // AWS SDK is available in Lambda runtime
       },
     });
 
@@ -40,16 +44,14 @@ export class NewCDkStack extends cdk.Stack {
       new s3n.LambdaDestination(s3ProcessorFunction)
     );
 
-    // Export the bucket name and ARN so other stacks can reference it
+    // Outputs
     new cdk.CfnOutput(this, 'BucketName', {
       value: this.bucket.bucketName,
-      exportName: 'Level2S2Bucket-Name',
       description: 'The name of the S3 bucket',
     });
 
     new cdk.CfnOutput(this, 'BucketArn', {
       value: this.bucket.bucketArn,
-      exportName: 'Level2S2Bucket-Arn',
       description: 'The ARN of the S3 bucket',
     });
 
@@ -57,6 +59,5 @@ export class NewCDkStack extends cdk.Stack {
       value: s3ProcessorFunction.functionArn,
       description: 'The ARN of the Lambda function',
     });
-
   }
 }
