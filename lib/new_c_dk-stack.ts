@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib/core';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 
 export class NewCDkStack extends cdk.Stack {
@@ -18,11 +19,11 @@ export class NewCDkStack extends cdk.Stack {
       versioned: true,
     });
 
-    // Create Lambda function using L2 construct
-    const s3ProcessorFunction = new lambda.Function(this, 'S3ProcessorFunction', {
+    // Create Lambda function using NodejsFunction (automatically handles TypeScript bundling)
+    const s3ProcessorFunction = new NodejsFunction(this, 'S3ProcessorFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda'),
+      entry: 'lambda/index.ts',
+      handler: 'handler',
       functionName: 's3-processor-function',
       description: 'Lambda function that processes objects in S3 bucket',
       timeout: cdk.Duration.seconds(30),

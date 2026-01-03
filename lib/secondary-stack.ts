@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib/core';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
@@ -21,11 +22,12 @@ export class SecondaryStack extends cdk.Stack {
     const bucketName = cdk.Fn.importValue('Level2S2Bucket-Name');
     const bucketArn = cdk.Fn.importValue('Level2S2Bucket-Arn');
 
-    // Create a Lambda function using L2 construct that reads from the shared S3 bucket
-    const bucketReaderFunction = new lambda.Function(this, 'BucketReaderFunction', {
+    // Create a Lambda function using NodejsFunction (automatically handles TypeScript bundling)
+    // that reads from the shared S3 bucket
+    const bucketReaderFunction = new NodejsFunction(this, 'BucketReaderFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda/bucket-reader'),
+      entry: 'lambda/bucket-reader/index.ts',
+      handler: 'handler',
       functionName: 'bucket-reader-function',
       description: 'Lambda function that reads objects from the shared S3 bucket',
       timeout: cdk.Duration.seconds(30),
